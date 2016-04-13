@@ -41,10 +41,17 @@ class RPL(eventBusClient.eventBusClient):
     
     # RPL DIO (RFC6550)
     DIO_OPT_GROUNDED                   = 1<<7 # Grounded
-    # Non-Storing Mode of Operation (1)
+    
+  ## # Non-Storing Mode of Operation (1)
+  ## MOP_DIO_A                          = 0<<5
+  ## MOP_DIO_B                          = 0<<4
+  ## MOP_DIO_C                          = 1<<3
+    
+    # Storing Mode of Operation (3)
     MOP_DIO_A                          = 0<<5
-    MOP_DIO_B                          = 0<<4
+    MOP_DIO_B                          = 1<<4
     MOP_DIO_C                          = 1<<3
+    
     # most preferred (7) as I am DAGRoot
     PRF_DIO_A                          = 1<<2
     PRF_DIO_B                          = 1<<1
@@ -202,8 +209,8 @@ class RPL(eventBusClient.eventBusClient):
             output               += ['- source :      {0}'.format(u.formatAddr(source))]
             output               += ['- dao :         {0}'.format(u.formatBuf(dao))]
             output                = '\n'.join(output)
-            log.debug(output)
-        
+            log.debug(output) 
+
         # retrieve DAO header
         dao_header                = {}
         dao_transit_information   = {}
@@ -217,11 +224,14 @@ class RPL(eventBusClient.eventBusClient):
             dao_header['RPL_DAO_Sequence']  = dao[3]
             # DODAGID
             dao_header['DODAGID']           = dao[4:20]
-           
+            dao_header['DODAGID_prefix']    = dao[4:12]
+            dao_header['DODAGID_add']       = dao[12:20]
+            
             dao                             = dao[20:]
             # retrieve transit information header and parents
             parents                         = []
             children                        = []
+            sourceadd                       = []
                           
             while (len(dao)>0):  
                 if   dao[0]==self._TRANSIT_INFORMATION_TYPE: 
@@ -233,9 +243,24 @@ class RPL(eventBusClient.eventBusClient):
                     dao_transit_information['Transit_information_path_sequence']    = dao[4]
                     dao_transit_information['Transit_information_path_lifetime']    = dao[5]
                     # address of the parent
+
+                    if dao_transit_information['Transit_information_length']==0:
+                        global rplmode    # Global var RPL-MODE -- Storing Mode
+                        rplmode = 1
+                    else:
+                        global rplmode    # Global var RPL-MODE -- Non-Storing Mode
+                        rplmode = 0
+
+
+                    global globvar    # Needed to modify global copy of globvar
+                    globvar = 1
+
+
                     prefix        =  dao[6:14]
                     parents      += [dao[14:22]]
+
                     dao           = dao[22:]
+                    
                 elif dao[0]==self._TARGET_INFORMATION_TYPE:
                     dao_target_information['Target_information_type']               = dao[0]
                     dao_target_information['Target_information_length']             = dao[1]
@@ -252,28 +277,60 @@ class RPL(eventBusClient.eventBusClient):
             log.warning("DAO too short ({0} bytes), no space for DAO header".format(len(dao)))
             return
         
-        # log
-        output               = []
-        output              += ['']
-        output              += ['received RPL DAO from {0}'.format(u.formatAddr(source))]
-        output              += ['- parents:']
-        for p in parents:
-            output          += ['   . {0}'.format(u.formatAddr(p))]
-        output              += ['- children:']
-        for p in children:
-            output          += ['   . {0}'.format(u.formatAddr(p))]
-        output               = '\n'.join(output)
-        if log.isEnabledFor(logging.DEBUG):
-            log.debug(output)
-        print output
-        
+        if   dao_transit_information['Transit_information_length']==1:
+            # log
+            output               = []
+            output              += ['']
+            output              += ['received RPL DAO from {0}'.format(u.formatAddr(source))]
+            output              += ['- Storing Mode']
+            output              += ['- children:']
+            for p in children:
+                output          += ['   . {0}'.format(u.formatAddr(p))]
+            output               = '\n'.join(output)
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug(output)
+            print output
+        else:
+            # log
+            output               = []
+            output              += ['']
+            output              += ['received RPL DAO from {0}'.format(u.formatAddr(source))]
+            output              += ['- parents:']
+            for p in parents:
+                output          += ['   . {0}'.format(u.formatAddr(p))]
+            output              += ['- children:']
+            for p in children:
+                output          += ['   . {0}'.format(u.formatAddr(p))]
+            output               = '\n'.join(output)
+            if log.isEnabledFor(logging.DEBUG):
+                log.debug(output)
+            print output
         # if you get here, the DAO was parsed correctly
         
         # update parents information with parents collected -- calls topology module.
         self.dispatch(          
             signal          = 'updateParents',
-            data            =  (tuple(source),parents)  
+            data            =  (tuple(source),parents)
         )
         
+        if  rplmode==1:
+            print ("[Python] RPL Storing-mode")
+        if  rplmode==0:
+            print ("[Python] RPL non-Storing-mode")
+            
+        if children:
+            
+            childs = children[0]
+            sourceadd += [source[0:8]]
+            print ("adding childs!!")
+            #print ('Longitud Parents {0}'.format(len(parents)))       
+            #print ('Longitud Children {0}'.format(len(children)))
+            #print ('Longitud source {0}'.format(len(source)))
+                   
+            self.dispatch(          
+                signal          = 'updateParents',
+                #data            =  (tuple(childs),parents)
+                data            =  (tuple(childs),sourceadd)
+            )
         #with self.dataLock:
         #    self.parents.update({tuple(source):parents})

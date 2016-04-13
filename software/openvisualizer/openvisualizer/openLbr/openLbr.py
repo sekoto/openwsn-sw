@@ -12,6 +12,7 @@ from openvisualizer.eventBus import eventBusClient
 import threading
 import openvisualizer.openvisualizer_utils as u
 
+
 #============================ parameters ======================================
 
 class OpenLbr(eventBusClient.eventBusClient):
@@ -110,9 +111,13 @@ class OpenLbr(eventBusClient.eventBusClient):
     TYPE_6LoRH_RH3_4         = 0x04
 
     MASK_LENGTH_6LoRH_IPINIP = 0x1F
-    
+
     #=== RPL source routing header (RFC6554)
+       
+    # RPL Source Route Header -- non-storing mode  
     SR_FIR_TYPE              = 0x03
+    # Type 2 Routing Header -- storing mode  
+    # SR_FIR_TYPE              = 0x02
     
     #=== UDP Header compression (RFC6282) 
     
@@ -202,6 +207,8 @@ class OpenLbr(eventBusClient.eventBusClient):
                 log.warning('unsupported address format {0}'.format(lowpan['dst_addr']))
                     
             lowpan['route'] = self._getSourceRoute(dst_addr)
+
+            print ('HOW MANY HOPS ARE IN THE ROUTING -- {0}'.format(len(lowpan['route']))) 
             
             if len(lowpan['route'])<2:
                 # no source route could be found
@@ -210,7 +217,9 @@ class OpenLbr(eventBusClient.eventBusClient):
                 return
             
             lowpan['route'].pop() #remove last as this is me.
-            
+            ##print ('Routing destination Address -- {0}'.format(lowpan['dst_addr']))
+            ##print ('Routing before send -- {0}'.format(lowpan['route']))
+
             lowpan['nextHop'] = lowpan['route'][len(lowpan['route'])-1] #get next hop as this has to be the destination address, this is the last element on the list
             # turn dictionary of fields into raw bytes
             lowpan_bytes     = self.reassemble_lowpan(lowpan)

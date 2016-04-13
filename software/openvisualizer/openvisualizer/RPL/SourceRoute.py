@@ -63,17 +63,20 @@ class SourceRoute(eventBusClient.eventBusClient):
     #======================== private =========================================
     
     def _getSourceRoute_internal(self,destAddr,sourceRoute,parents):
-        
+       
         if not destAddr:
+            print '[Python] not destAddr -- No more Parents'
             # no more parents
             return
         
         if not parents.get(tuple(destAddr)):
+            print '[Python] not parents.get -- No Parents'
             # this node does not have a list of parents
             return
         
         # first time add destination address
         if destAddr not in sourceRoute:
+            print '[Python] destAddr not in sourceRoute -- Adding Destination Address'
             sourceRoute     += [destAddr]
         
         # pick a parent
@@ -81,12 +84,15 @@ class SourceRoute(eventBusClient.eventBusClient):
         
         # avoid loops
         if parent not in sourceRoute:
+            print '[Python] parent not in sourceRoute -- Adding Parent'
             sourceRoute     += [parent]
+
             
-            # add non empty parents recursively
+            #add non empty parents recursively
             nextparent       = self._getSourceRoute_internal(parent,sourceRoute,parents)
             
             if nextparent:
+                print '[Python] nextparent'
                 sourceRoute += [nextparent]
     
     #======================== helpers =========================================
