@@ -16,6 +16,8 @@ log = logging.getLogger('RPL')
 log.setLevel(logging.ERROR)
 log.addHandler(logging.NullHandler())
 
+import confglobal
+
 import threading
 import struct
 from datetime import datetime
@@ -41,17 +43,18 @@ class RPL(eventBusClient.eventBusClient):
     
     # RPL DIO (RFC6550)
     DIO_OPT_GROUNDED                   = 1<<7 # Grounded
-    
-  ## # Non-Storing Mode of Operation (1)
-  ## MOP_DIO_A                          = 0<<5
-  ## MOP_DIO_B                          = 0<<4
-  ## MOP_DIO_C                          = 1<<3
-    
-    # Storing Mode of Operation (3)
-    MOP_DIO_A                          = 0<<5
-    MOP_DIO_B                          = 1<<4
-    MOP_DIO_C                          = 1<<3
-    
+
+    if confglobal.rplmode==1:
+        # Storing Mode of Operation (3)
+        MOP_DIO_A                          = 0<<5
+        MOP_DIO_B                          = 1<<4
+        MOP_DIO_C                          = 1<<3
+    else:
+        # Non-Storing Mode of Operation (1)
+        MOP_DIO_A                          = 0<<5
+        MOP_DIO_B                          = 0<<4
+        MOP_DIO_C                          = 1<<3
+
     # most preferred (7) as I am DAGRoot
     PRF_DIO_A                          = 1<<2
     PRF_DIO_B                          = 1<<1
@@ -245,19 +248,15 @@ class RPL(eventBusClient.eventBusClient):
                     # address of the parent
 
                     if dao_transit_information['Transit_information_length']==0:
-                        global rplmode    # Global var RPL-MODE -- Storing Mode
-                        rplmode = 1
+                        #global rplmode    # Global var RPL-MODE -- Storing Mode
+                        #rplmode = 1
+                        prefix        =  dao[6:14]
+                        parents      += [dao_header['DODAGID_add']]
                     else:
-                        global rplmode    # Global var RPL-MODE -- Non-Storing Mode
-                        rplmode = 0
-
-
-                    global globvar    # Needed to modify global copy of globvar
-                    globvar = 1
-
-
-                    prefix        =  dao[6:14]
-                    parents      += [dao[14:22]]
+                        #global rplmode    # Global var RPL-MODE -- Non-Storing Mode
+                        #rplmode = 0
+                        prefix        =  dao[6:14]
+                        parents      += [dao[14:22]]
 
                     dao           = dao[22:]
                     
@@ -313,24 +312,27 @@ class RPL(eventBusClient.eventBusClient):
             data            =  (tuple(source),parents)
         )
         
-        if  rplmode==1:
-            print ("[Python] RPL Storing-mode")
-        if  rplmode==0:
-            print ("[Python] RPL non-Storing-mode")
+        if  confglobal.rplmode==1:
+            print ("[Python] RPL Storing-Mode")
+        if  confglobal.rplmode==0:
+            print ("[Python] RPL Non-Storing-Mode")
+
+
+        if confglobal.rplmode==1:
+            if children:
             
-        if children:
-            
-            childs = children[0]
-            sourceadd += [source[0:8]]
-            print ("adding childs!!")
-            #print ('Longitud Parents {0}'.format(len(parents)))       
-            #print ('Longitud Children {0}'.format(len(children)))
-            #print ('Longitud source {0}'.format(len(source)))
+                childs = children[0]
+                sourceadd += [source[0:8]]
+                print ("adding childs!!")
+                #print ('Longitud Parents {0}'.format(len(parents)))       
+                #print ('Longitud Children {0}'.format(len(children)))
+                #print ('Longitud source {0}'.format(len(source)))
                    
-            self.dispatch(          
-                signal          = 'updateParents',
-                #data            =  (tuple(childs),parents)
-                data            =  (tuple(childs),sourceadd)
-            )
+                self.dispatch(          
+                    signal          = 'updateParents',
+                    #data            =  (tuple(childs),parents)
+                    data            =  (tuple(childs),sourceadd)
+                )
+            
         #with self.dataLock:
         #    self.parents.update({tuple(source):parents})

@@ -63,7 +63,9 @@ class SourceRoute(eventBusClient.eventBusClient):
     #======================== private =========================================
     
     def _getSourceRoute_internal(self,destAddr,sourceRoute,parents):
-       
+
+        print 'getSourceRoute_internal--Datination Address  . {0}'.format(u.formatAddr(destAddr))
+        
         if not destAddr:
             print '[Python] not destAddr -- No more Parents'
             # no more parents
@@ -85,6 +87,8 @@ class SourceRoute(eventBusClient.eventBusClient):
         # avoid loops
         if parent not in sourceRoute:
             print '[Python] parent not in sourceRoute -- Adding Parent'
+            print '   . {0}'.format(u.formatAddr(parent))
+            
             sourceRoute     += [parent]
 
             

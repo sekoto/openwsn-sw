@@ -8,6 +8,8 @@ log = logging.getLogger('openLbr')
 log.setLevel(logging.ERROR)
 log.addHandler(logging.NullHandler())
 
+import openvisualizer.RPL.confglobal
+
 from openvisualizer.eventBus import eventBusClient
 import threading
 import openvisualizer.openvisualizer_utils as u
@@ -187,7 +189,7 @@ class OpenLbr(eventBusClient.eventBusClient):
             # turn raw byte into dictionary of fields
             ipv6             = self.disassemble_ipv6(ipv6_bytes)
 
-             # filter out multicast packets
+            # filter out multicast packets
             if ipv6['dst_addr'][0]==0xff:
                 return
             
@@ -205,11 +207,10 @@ class OpenLbr(eventBusClient.eventBusClient):
                 dst_addr=lowpan['dst_addr']
             else:
                 log.warning('unsupported address format {0}'.format(lowpan['dst_addr']))
-                    
-            lowpan['route'] = self._getSourceRoute(dst_addr)
 
-            print ('HOW MANY HOPS ARE IN THE ROUTING -- {0}'.format(len(lowpan['route']))) 
+            lowpan['route'] = self._getSourceRoute(dst_addr)
             
+            print ('HOW MANY HOPS ARE IN THE ROUTING -- {0}'.format(len(lowpan['route']))) 
             if len(lowpan['route'])<2:
                 # no source route could be found
                 log.warning('no source route to {0}'.format(lowpan['dst_addr']))
@@ -221,6 +222,11 @@ class OpenLbr(eventBusClient.eventBusClient):
             ##print ('Routing before send -- {0}'.format(lowpan['route']))
 
             lowpan['nextHop'] = lowpan['route'][len(lowpan['route'])-1] #get next hop as this has to be the destination address, this is the last element on the list
+
+            if  openvisualizer.RPL.confglobal.rplmode==1:
+                while len(lowpan['route'])>0:
+                    lowpan['route'].pop()
+                
             # turn dictionary of fields into raw bytes
             lowpan_bytes     = self.reassemble_lowpan(lowpan)
             
@@ -422,7 +428,8 @@ class OpenLbr(eventBusClient.eventBusClient):
         
         # nh
         lowpan['nh']         = [ipv6['next_header']]
-        
+        print '+++ next_header {0} '.format(ipv6['next_header'])
+
         # hlim
         lowpan['hlim']       = [ipv6['hop_limit']]
         
@@ -504,7 +511,7 @@ class OpenLbr(eventBusClient.eventBusClient):
                             returnVal += hopList
                             size = 1
                             sizeUnitType = self.TYPE_6LoRH_RH3_1
-                            hopList += hop[-2:]
+                            hopList = hop[-2:]
                             compressReference = hop
                         else:
                             hopList += hop[-2:]
@@ -520,7 +527,7 @@ class OpenLbr(eventBusClient.eventBusClient):
                             returnVal += hopList
                             size = 1
                             sizeUnitType = self.TYPE_6LoRH_RH3_2
-                            hopList += hop[-4:]
+                            hopList = hop[-4:]
                             compressReference = hop
                         else:
                             hopList += hop[-4:]
@@ -548,7 +555,9 @@ class OpenLbr(eventBusClient.eventBusClient):
 
             returnVal += [self.CRITICAL_6LoRH|(size-1),sizeUnitType]
             returnVal += hopList
-
+        else:
+            print("No Source-Routing")
+            
         # ===================== 2. IPinIP 6LoRH ===============================
 
         if lowpan['src_addr'][:8] != [187, 187, 0, 0, 0, 0, 0, 0]:
