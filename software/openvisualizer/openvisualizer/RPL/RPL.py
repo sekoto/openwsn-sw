@@ -249,12 +249,12 @@ class RPL(eventBusClient.eventBusClient):
 
                     if dao_transit_information['Transit_information_length']==0:
                         #global rplmode    # Global var RPL-MODE -- Storing Mode
-                        #rplmode = 1
+                        confglobal.rplmode = 1
                         prefix        =  dao[6:14]
                         parents      += [dao_header['DODAGID_add']]
                     else:
                         #global rplmode    # Global var RPL-MODE -- Non-Storing Mode
-                        #rplmode = 0
+                        confglobal.rplmode = 0
                         prefix        =  dao[6:14]
                         parents      += [dao[14:22]]
 
