@@ -28,6 +28,8 @@ from openvisualizer.eventBus import eventBusClient
 import SourceRoute
 import openvisualizer.openvisualizer_utils as u
 
+import time, datetime
+
 class RPL(eventBusClient.eventBusClient):
     
     _TARGET_INFORMATION_TYPE           = 0x05
@@ -99,6 +101,11 @@ class RPL(eventBusClient.eventBusClient):
         self.latencyStats         = {}
     
     #======================== public ==========================================
+
+    def getstamp(self):
+        ''' timestamp creator (seconds) '''
+        ts = time.time()
+        return ts
     
     def close(self):
         # nothing to do
@@ -248,15 +255,24 @@ class RPL(eventBusClient.eventBusClient):
                     # address of the parent
 
                     if dao_transit_information['Transit_information_length']==0:
+                        print ("[Python] RPL Storing-Mode")
                         #global rplmode    # Global var RPL-MODE -- Storing Mode
                         confglobal.rplmode = 1
                         prefix        =  dao[6:14]
-                        parents      += [dao_header['DODAGID_add']]
+                        #parents      += [dao_header['DODAGID_add']]
+                        parentoadd = {'address':dao_header['DODAGID_add'],'timestamp':self.getstamp()}
+                        parents.append(dict(parentoadd))
+                        #parents      += {'address':dao_header['DODAGID_add'],'timestamp':self.getstamp()}
+                        print ("PYTHON -------- Storing-Mode testing")
                     else:
+                        print ("[Python] RPL Non-Storing-Mode")
                         #global rplmode    # Global var RPL-MODE -- Non-Storing Mode
                         confglobal.rplmode = 0
                         prefix        =  dao[6:14]
-                        parents      += [dao[14:22]]
+                        #parents      += [dao[14:22]]
+                        parentoadd = {'address':dao[14:22],'timestamp':self.getstamp()}
+                        parents.append(dict(parentoadd))
+                        #parents      += {'address':dao[14:22],'timestamp':self.getstamp()}
 
                     dao           = dao[22:]
                     
@@ -296,7 +312,7 @@ class RPL(eventBusClient.eventBusClient):
             output              += ['received RPL DAO from {0}'.format(u.formatAddr(source))]
             output              += ['- parents:']
             for p in parents:
-                output          += ['   . {0}'.format(u.formatAddr(p))]
+                output          += ['   . {0}'.format(u.formatAddr(p['address']))]
             output              += ['- children:']
             for p in children:
                 output          += ['   . {0}'.format(u.formatAddr(p))]
@@ -305,7 +321,9 @@ class RPL(eventBusClient.eventBusClient):
                 log.debug(output)
             print output
         # if you get here, the DAO was parsed correctly
-        
+
+
+        print ("PYTHON -------- Adding Parents")
         # update parents information with parents collected -- calls topology module.
         self.dispatch(          
             signal          = 'updateParents',
@@ -322,7 +340,11 @@ class RPL(eventBusClient.eventBusClient):
             if children:
             
                 childs = children[0]
-                sourceadd += [source[0:8]]
+                #sourceadd += [source[0:8]]
+                sourcetoadd = {'address':source[0:8],'timestamp':self.getstamp()}
+                sourceadd.append(dict(sourcetoadd))
+                #sourceadd      += {'address':source[0:8],'timestamp':self.getstamp()}
+
                 print ("adding childs!!")
                 #print ('Longitud Parents {0}'.format(len(parents)))       
                 #print ('Longitud Children {0}'.format(len(children)))
@@ -330,7 +352,6 @@ class RPL(eventBusClient.eventBusClient):
                    
                 self.dispatch(          
                     signal          = 'updateParents',
-                    #data            =  (tuple(childs),parents)
                     data            =  (tuple(childs),sourceadd)
                 )
             
