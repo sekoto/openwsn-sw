@@ -21,7 +21,6 @@ import threading
 import openvisualizer.openvisualizer_utils as u
 from openvisualizer.eventBus import eventBusClient
 
-
 class SourceRoute(eventBusClient.eventBusClient):
        
     def __init__(self):
@@ -82,7 +81,8 @@ class SourceRoute(eventBusClient.eventBusClient):
             sourceRoute     += [destAddr]
         
         # pick a parent
-        parent               = parents.get(tuple(destAddr))[0]
+        #parent               = parents.get(tuple(destAddr))[0]
+        parent = parents[tuple(destAddr)]['parents'][0]['address']
         
         # avoid loops
         if parent not in sourceRoute:
@@ -90,7 +90,6 @@ class SourceRoute(eventBusClient.eventBusClient):
             print '   . {0}'.format(u.formatAddr(parent))
             
             sourceRoute     += [parent]
-
             
             #add non empty parents recursively
             nextparent       = self._getSourceRoute_internal(parent,sourceRoute,parents)
