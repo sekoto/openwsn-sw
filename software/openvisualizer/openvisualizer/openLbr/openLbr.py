@@ -40,7 +40,7 @@ class OpenLbr(eventBusClient.eventBusClient):
     IANA_IPv6HOPHEADER       = 0
     # there is no IANA for IPV6 HEADER right now, we use NHC identifier for it
     IPV6_HEADER              = 0xEE #https://tools.ietf.org/html/rfc6282#section-4.2
-    
+
     #hop header flags
     O_FLAG                   = 0x10
     R_FLAG                   = 0x08
@@ -217,12 +217,13 @@ class OpenLbr(eventBusClient.eventBusClient):
                 # TODO: return ICMPv6 message
                 return
             
-            lowpan['route'].pop() #remove last as this is me.
+            lowpan['route'].pop() # Remove last in the List because this is me.
             ##print ('Routing destination Address -- {0}'.format(lowpan['dst_addr']))
             ##print ('Routing before send -- {0}'.format(lowpan['route']))
 
             lowpan['nextHop'] = lowpan['route'][len(lowpan['route'])-1] #get next hop as this has to be the destination address, this is the last element on the list
 
+            # Empty the lowpan['route'] list to make NO Source-Routing -- Only in Storing-Mode
             if  openvisualizer.RPL.confglobal.rplmode==1:
                 while len(lowpan['route'])>0:
                     lowpan['route'].pop()
@@ -464,28 +465,28 @@ class OpenLbr(eventBusClient.eventBusClient):
         # 3. RPI 6LoRH (maybe elided)
         # 4. IPinIP 6LoRH (maybe elided)
         # 5. IPHC inner header
-        
+
         # ===================== 1. Page Dispatch (page 1) =====================
-
+            
         returnVal += [self.PAGE_ONE_DISPATCH]
-
+            
         if lowpan['src_addr'][:8] != [187, 187, 0, 0, 0, 0, 0, 0]:
             compressReference = [187, 187, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
         else:
             compressReference = lowpan['src_addr']
-
-
+    
+    
         # destination address
         if len(lowpan['route'])>1:
             # source route needed, get prefix from compression Reference
             if (len(compressReference)==16): 
                 prefix=compressReference[:8]
-
+    
             # =======================3. RH3 6LoRH(s) ============================== 
             sizeUnitType = 0xff
             size     = 0
             hopList  = []
-
+    
             for hop in list(reversed(lowpan['route'][1:])):
                 size += 1
                 if compressReference[-8:-1] == hop[-8:-1]:
@@ -552,30 +553,38 @@ class OpenLbr(eventBusClient.eventBusClient):
                         sizeUnitType = self.TYPE_6LoRH_RH3_3
                         hopList += hop
                         compressReference = hop
-
+        
             returnVal += [self.CRITICAL_6LoRH|(size-1),sizeUnitType]
             returnVal += hopList
         else:
-            print("No Source-Routing")
-            
-        # ===================== 2. IPinIP 6LoRH ===============================
+            #print("No Source-Routing")
 
-        if lowpan['src_addr'][:8] != [187, 187, 0, 0, 0, 0, 0, 0]:
             # add RPI 
-            # TBD
             flag = self.O_FLAG | self.I_FLAG | self.K_FLAG
+            print ('[Python] add RPI -- flag {0}'.format(flag))  
             senderRank = 0 # rank of dagroot
             returnVal += [self.CRITICAL_6LoRH | flag,self.TYPE_6LoRH_RPI,senderRank]
+
+        # ===================== 2. IPinIP 6LoRH ===============================
+            
+        if lowpan['src_addr'][:8] != [187, 187, 0, 0, 0, 0, 0, 0]:
+            if  openvisualizer.RPL.confglobal.rplmode==0:
+                # add RPI 
+                # TBD
+                flag = self.O_FLAG | self.I_FLAG | self.K_FLAG
+                senderRank = 0 # rank of dagroot
+                returnVal += [self.CRITICAL_6LoRH | flag,self.TYPE_6LoRH_RPI,senderRank]
             # ip in ip 6lorh
             l = 1
             returnVal += [self.ELECTIVE_6LoRH | l,self.TYPE_6LoRH_IP_IN_IP]
             returnVal += lowpan['hlim']
-
+        
             compressReference = [187, 187, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
         else:
             compressReference = lowpan['src_addr']
- 
+        
         # ========================= 4. IPHC inner header ======================
+
         # Byte1: 011(3b) TF(2b) NH(1b) HLIM(2b)
         if len(lowpan['tf'])==0:
             tf               = self.IPHC_TF_ELIDED
@@ -624,6 +633,7 @@ class OpenLbr(eventBusClient.eventBusClient):
             dam              = self.IPHC_DAM_ELIDED
         else:
             raise SystemError()
+
         returnVal           += [(cid << 7) + (sac << 6) + (sam << 4) + (m << 3) + (dac << 2) + (dam << 0)]
 
         # tf
@@ -631,7 +641,8 @@ class OpenLbr(eventBusClient.eventBusClient):
 
         # nh
         returnVal           += lowpan['nh']
-        
+        #print ('Mounting returnVal -- NextHeader {0}'.format(lowpan['nh']))     
+
         # hlim
         returnVal           += lowpan['hlim']
         
@@ -643,9 +654,12 @@ class OpenLbr(eventBusClient.eventBusClient):
         
         # dst_addr
         returnVal           += lowpan['dst_addr']
-
+       
         # payload
         returnVal           += lowpan['payload']
+        #print ('Mounting returnVal -- Payload {0}'.format(lowpan['payload']))
+        
+        #print ('Mounting returnVal -- {0}'.format(returnVal)) 
 
         return returnVal
     
