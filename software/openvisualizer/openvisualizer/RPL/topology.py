@@ -26,7 +26,7 @@ import time, datetime
 class topology(eventBusClient.eventBusClient):
     
     def __init__(self):
-
+        
         # local variables
         self.dataLock        = threading.Lock()
         self.parents         = {}
@@ -48,6 +48,7 @@ class topology(eventBusClient.eventBusClient):
             ]
         )
     
+      
     #======================== public ==========================================
 
     def getstamp(self):
@@ -56,6 +57,8 @@ class topology(eventBusClient.eventBusClient):
         return ts
     
     def getParents(self,sender,signal,data):
+        print("++++++++++ PYTHON ---------- getParents")
+        self.cleanParents()
         return self.parents
     
     def getDAG(self):
@@ -86,11 +89,11 @@ class topology(eventBusClient.eventBusClient):
         
     def updateParents(self,sender,signal,data):
         ''' inserts parent information into the parents dictionary '''
+        print ("++++++++++ PYTHON ---------- Updating Parents Table")
         with self.dataLock:
             #data[0] == source address, data[1] == list of parents
             #self.parents.update({data[0]:data[1]})
             try:
-                value = self.parents[data[0]]
                 #print ('Address exists, updating parents')
                 if not self.parents[data[0]]['parents']:
                     self.parents[data[0]] = {'parents':data[1]}
@@ -100,38 +103,47 @@ class topology(eventBusClient.eventBusClient):
                         controla=0
                         for j in range(len(self.parents[data[0]]['parents'])):
                             if (self.parents[data[0]]['parents'][j]['address'] == data[1][i]['address']):
-                                #print ('Updating parent')
+                                print ('++++++++++ PYTHON -- Updating parent {0} from Source Address {1}'.format(u.formatAddr(self.parents[data[0]]['parents'][j]['address']),u.formatAddr(data[0])))
+                                #print ('++++++++++ PYTHON -- Timestamp Before {0}'.format(self.parents[data[0]]['parents'][j]['timestamp']))
                                 self.parents[data[0]]['parents'][j]['timestamp']=data[1][i]['timestamp']
+                                #print ('++++++++++ PYTHON -- Timestamp After {0}'.format(self.parents[data[0]]['parents'][j]['timestamp']))
                                 controla=1
                                 break
                         if (controla==0):
                             #print ('This parent isn't inside, adding parent')
                             self.parents[data[0]]['parents'] += data[1][i]   
             except KeyError:
-                # Key is not present
-                #print ('This Address doesn't exist, adding all')
+                # This Address doesn't exist, adding all
+                print ('++++++++++ PYTHON -- Adding Source Address {0}'.format(u.formatAddr(data[0])))
                 self.parents[data[0]] = {'parents':data[1]}
+                
+            self.cleanParents()
 
     def cleanParents(self):		
-        ''' cleans the parents if are too old '''
-        plifetime = 180 # Lifetime of a Parent in the Parent Table
-        for element in self.parents:
+        ''' cleans the parents for innactivity'''
+        print ("++++++++++ PYTHON ---------- Cleaning Parents Table")
+        plifetime = 130 # Lifetime of a Parent in the Parent Table
+        for element in self.parents.copy():
             #print (element)
+            print ('++++++++++ PYTHON -- Source Address {0}'.format(u.formatAddr(element)))
             listpop = []
             i=0
             for i in range(len(self.parents[element]['parents'])):
                 actualtime=self.getstamp()
-                #print (actualtime - self.parents[element]['parents'][i]['timestamp'])
+                print ('++++++++++ PYTHON -- Source Address -- Parent Address {0} -- Timestamp diference {1}'.format(u.formatAddr(self.parents[element]['parents'][i]['address']),actualtime - self.parents[element]['parents'][i]['timestamp']))
                 if (actualtime - self.parents[element]['parents'][i]['timestamp'])> plifetime:
                     listpop.append(self.parents[element]['parents'][i]['address'])
                     
             for pop in range(len(listpop)):
                 for i in range(len(self.parents[element]['parents'])):
                     if (self.parents[element]['parents'][i]['address'] == listpop[pop]):
-                        print ("Removing Parent {0} For innactivity".format(u.formatAddr(listpop[pop])))
+                        print ("++++++++++ PYTHON -- Source Address {0} -- Removing Parent {1} For innactivity".format(u.formatAddr(element),u.formatAddr(listpop[pop])))
                         self.parents[element]['parents'].pop(pop)
+                        if not self.parents[element]['parents']:
+                            print ("++++++++++ PYTHON -- Removing Source Address {0} ".format(u.formatAddr(element)))
+                            del self.parents[element]
                         break
-                
+
     #======================== private =========================================
     
 

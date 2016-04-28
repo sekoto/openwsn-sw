@@ -63,7 +63,7 @@ class RPL(eventBusClient.eventBusClient):
     PRF_DIO_C                          = 1<<0
     
     def __init__(self):
-        
+
         # log
         log.info("create instance")
         
