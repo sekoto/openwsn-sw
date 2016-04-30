@@ -366,7 +366,11 @@ class OpenLbr(eventBusClient.eventBusClient):
         except (ValueError,NotImplementedError) as err:
             log.error(err)
             pass
-    
+        
+        except KeyError:
+            # packet discarded
+            pass
+
     def disassemble_ipv6(self,ipv6):
         '''
         Turn byte array representing IPv6 packets into into dictionary

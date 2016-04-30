@@ -123,7 +123,7 @@ class topology(eventBusClient.eventBusClient):
     def cleanParents(self):		
         ''' cleans the parents for innactivity'''
         print ("++++++++++ PYTHON ---------- Cleaning Parents Table")
-        plifetime = 70 # Lifetime of a Parent in the Parent Table
+        plifetime = 120 # Lifetime of a Parent in the Parent Table
         for element in self.parents.copy():
             #print (element)
             print ('++++++++++ PYTHON -- Source Address {0}'.format(u.formatAddr(element)))
