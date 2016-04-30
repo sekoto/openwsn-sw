@@ -57,7 +57,7 @@ class topology(eventBusClient.eventBusClient):
         return ts
     
     def getParents(self,sender,signal,data):
-        print("++++++++++ PYTHON ---------- getParents")
+        #print("++++++++++ PYTHON ---------- getParents")
         self.cleanParents()
         return self.parents
     
@@ -67,6 +67,7 @@ class topology(eventBusClient.eventBusClient):
         motes = []
         
         with self.dataLock:
+            self.cleanParents()
             for src, dsts in self.parents.iteritems():
                 dstslst = []
                 for i in range(len(dsts)):
@@ -122,7 +123,7 @@ class topology(eventBusClient.eventBusClient):
     def cleanParents(self):		
         ''' cleans the parents for innactivity'''
         print ("++++++++++ PYTHON ---------- Cleaning Parents Table")
-        plifetime = 130 # Lifetime of a Parent in the Parent Table
+        plifetime = 70 # Lifetime of a Parent in the Parent Table
         for element in self.parents.copy():
             #print (element)
             print ('++++++++++ PYTHON -- Source Address {0}'.format(u.formatAddr(element)))
