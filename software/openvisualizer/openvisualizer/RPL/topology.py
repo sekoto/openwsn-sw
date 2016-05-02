@@ -21,10 +21,11 @@ import threading
 import openvisualizer.openvisualizer_utils as u
 from openvisualizer.eventBus import eventBusClient
 
+import sched
 import time, datetime
 
 class topology(eventBusClient.eventBusClient):
-    
+
     def __init__(self):
         
         # local variables
@@ -47,10 +48,19 @@ class topology(eventBusClient.eventBusClient):
                 },
             ]
         )
-    
-      
+
+        # Start Job for cleaning parents
+        self.LoopCleaner()
+
     #======================== public ==========================================
 
+    def LoopCleaner(self):
+        i=30
+        # i as interval in seconds    
+        threading.Timer(i, self.LoopCleaner).start()    
+        # Here comes the action
+        self.cleanParents()
+        
     def getstamp(self):
         ''' timestamp creator (seconds) '''
         ts = time.time()
@@ -58,7 +68,6 @@ class topology(eventBusClient.eventBusClient):
     
     def getParents(self,sender,signal,data):
         #print("++++++++++ PYTHON ---------- getParents")
-        self.cleanParents()
         return self.parents
     
     def getDAG(self):
@@ -67,7 +76,6 @@ class topology(eventBusClient.eventBusClient):
         motes = []
         
         with self.dataLock:
-            self.cleanParents()
             for src, dsts in self.parents.iteritems():
                 dstslst = []
                 for i in range(len(dsts)):
@@ -117,8 +125,6 @@ class topology(eventBusClient.eventBusClient):
                 # This Address doesn't exist, adding all
                 print ('++++++++++ PYTHON -- Adding Source Address {0}'.format(u.formatAddr(data[0])))
                 self.parents[data[0]] = {'parents':data[1]}
-                
-            self.cleanParents()
 
     def cleanParents(self):		
         ''' cleans the parents for innactivity'''
